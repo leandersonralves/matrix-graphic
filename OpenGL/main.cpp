@@ -11,7 +11,7 @@
 
 const GLint WIDTH = 800, HEIGHT = 600;
 
-GLuint VAO, VBO, shader, uniformModel;
+GLuint VAO, VBO, IBO, shader, uniformModel;
 
 bool direction = true;
 float triOffset = 0.0f;
@@ -24,11 +24,14 @@ static const char* vShader = "													\n\
 																				\n\
 layout (location = 0) in vec3 pos;												\n\
 																				\n\
+out vec4 vecColor;																\n\
+																				\n\
 uniform mat4 model;																\n\
 																				\n\
 void main ()																	\n\
 {																				\n\
-	gl_Position = model * vec4(pos.x, pos.y, pos.z, 1.0);			\n\
+	gl_Position = model * vec4(pos.x, pos.y, pos.z, 1.0);						\n\
+	vecColor = vec4(clamp(pos, 0, 1), 1.0);										\n\
 }";
 
 
@@ -36,21 +39,36 @@ void main ()																	\n\
 static const char* fShader = "											\n\
 #version 330															\n\
 																		\n\
+in vec4 vecColor;														\n\
 out vec4 colour;														\n\
 																		\n\
 void main ()															\n\
 {																		\n\
-	colour = vec4(186.0 / 255.0, 95.0 / 255.0, 107.0 / 255.0, 1.0);		\n\
+	colour = vecColor;													\n\
 }";
 
 void CreateTriangle()
 {
+	unsigned int indices[] = {
+			0, 3, 1,
+			1, 3, 2,
+			2, 3, 0,
+			0, 1, 2
+	};
+
 	//Vertices coordinates.
 	GLfloat vertices[] = {
 		-1.0f, -1.0f, 0.0f,
+		0.0f, 1.0f, 1.0f,
 		1.0f, -1.0f, 0.0f,
 		0.0f, 1.0f, 0.0f
 	};
+
+#pragma region IOB
+	glGenBuffers(1, &IBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+#pragma endregion
 
 #pragma region  VAO
 	//ONLY Generate a VAO name on graphics card, array object.
@@ -77,6 +95,9 @@ void CreateTriangle()
 
 	//Bind a Buffer, in this case BIND the buffer to vertex attributes above.
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
 	//Bind a vertex array, in this case bind the vertex above.
 	glBindVertexArray(0);
 #pragma endregion
@@ -210,6 +231,9 @@ int main()
 		return 1;
 	}
 
+	//Enable depth test, wich are disable by Default.
+	glEnable(GL_DEPTH_TEST);
+
 	//Specify the viewport on current window
 	glViewport(0, 0, bufferWidth, bufferHeight);
 
@@ -272,22 +296,23 @@ int main()
 		//Specified a clear color, to be draw when glClear in called.
 		glClearColor(115.0f / 255.0f, 95.0f / 255.0f, 186.0f / 255.0f, 1.0f);
 		//Clear a specified BUFFER (Color, Depth or Stencil)
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		//Define a shader program to be executed by GPU processors.
 		glUseProgram(shader);
 
 		glm::mat4 model(1.0f);
-		model = glm::translate(model, glm::vec3(triOffset, 0.0f, 0.0f));
-		model = glm::rotate(model, currentDegrees * toRadians, glm::vec3(0.0f, 0.0f, 1.0f));
-		model = glm::scale(model, glm::vec3(currentScale, currentScale, 1.0f));
+		//model = glm::translate(model, glm::vec3(triOffset, 0.0f, 0.0f));
+		model = glm::rotate(model, currentDegrees * toRadians, glm::vec3(0.0f, 0.5f, 0.5f));
+		model = glm::scale(model, glm::vec3(0.5));// currentScale, currentScale, 1.0f));
 
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
 
 		//Bind (Callbatch) a vertex array
 		glBindVertexArray(VAO);
-		//Draw a specified array with specified PRIMITIVE TYPE.
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+		glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 		glBindVertexArray(0);
 		
 		//Clear the current program used.
