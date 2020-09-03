@@ -11,12 +11,7 @@
 
 const GLint WIDTH = 800, HEIGHT = 600;
 
-GLuint VAO, VBO, IBO, shader, uniformModel;
-
-bool direction = true;
-float triOffset = 0.0f;
-float triMaxOffset = 0.95f;
-float triIncrement = 0.005f;
+GLuint VAO, VBO, IBO, shader, uniformModel, uniformProjection;
 
 // Vertex Shader
 static const char* vShader = "													\n\
@@ -27,10 +22,11 @@ layout (location = 0) in vec3 pos;												\n\
 out vec4 vecColor;																\n\
 																				\n\
 uniform mat4 model;																\n\
+uniform mat4 projection;														\n\
 																				\n\
 void main ()																	\n\
 {																				\n\
-	gl_Position = model * vec4(pos.x, pos.y, pos.z, 1.0);						\n\
+	gl_Position = projection * model * vec4(pos.x, pos.y, pos.z, 1.0);			\n\
 	vecColor = vec4(clamp(pos, 0, 1), 1.0);										\n\
 }";
 
@@ -181,6 +177,7 @@ void CompileShaders()
 	}
 
 	uniformModel = glGetUniformLocation(shader, "model");
+	uniformProjection = glGetUniformLocation(shader, "projection");
 }
 
 int main()
@@ -246,15 +243,22 @@ int main()
 	//Compile the Shaders and send to GPU.
 	CompileShaders();
 
+	glm::mat4 projection = glm::perspective(45.0f, (GLfloat)bufferWidth / (GLfloat)bufferHeight, 0.1f, 100.0f);
+
 	float toRadians = 3.141516f / 180.0f;
 	float currentDegrees = 0.0f;
-	float angleIncrement = 0.5f;
+	float angleIncrement = 3.75f;
 
 	float currentScale = 0.1f;
 	float scaleIncrement = 0.01f;
 	bool isIncreasing = true;
 	float maxScale = 1.0f;
 	float minScale = 0.1f;
+
+	bool direction = true;
+	float triOffset = 0.0f;
+	float triMaxOffset = 0.95f;
+	float triIncrement = 0.025f;
 
 	//loop while window is open.
 	while (!glfwWindowShouldClose(mainWindow))
@@ -305,11 +309,12 @@ int main()
 		glUseProgram(shader);
 
 		glm::mat4 model(1.0f);
-		//model = glm::translate(model, glm::vec3(triOffset, 0.0f, 0.0f));
-		model = glm::rotate(model, currentDegrees * toRadians, glm::vec3(0.0f, 1.0f, 1.0f));
+		model = glm::translate(model, glm::vec3(triOffset, 0.0f, -2.5f));
+		model = glm::rotate(model, currentDegrees * toRadians, glm::vec3(1.0f, 0.3f, 0.75f));
 		model = glm::scale(model, glm::vec3(0.5));// currentScale, currentScale, 1.0f));
 
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+		glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
 
 		//Bind (Callbatch) a vertex array
 		glBindVertexArray(VAO);
